@@ -30,8 +30,8 @@ function MarkdownEditor({ setValue, value }) {
 }
 
 MarkdownEditor.propTypes = {
-  file: PropTypes.object,
-  write: PropTypes.func
+  value: PropTypes.string,
+  setValue: PropTypes.func,
 }
 
 export default MarkdownEditor

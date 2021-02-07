@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react'
 import Head from 'next/head'
 import PropTypes from 'prop-types'
 import path from 'path'
-import classNames from 'classnames'
-
-import { listFiles } from '../files'
 
 // Used below, these need to be registered
 import PlaintextEditor from '../components/Plaintext/PlaintextEditor'
@@ -13,104 +10,11 @@ import MarkdownPreviewer from '../components/Markdown/MarkdownPreviewer'
 import PlaintextPreviewer from '../components/Plaintext/PlaintextPreviewer'
 import CodeEditor from '../components/Code/CodeEditor'
 import CodePreviewer from '../components/Code/CodePreviewer'
-
-import IconPlaintextSVG from '../public/icon-plaintext.svg'
-import IconMarkdownSVG from '../public/icon-markdown.svg'
-import IconJavaScriptSVG from '../public/icon-javascript.svg'
-import IconJSONSVG from '../public/icon-json.svg'
+import FilesTable from '../components/FileTable'
 
 import css from './style.module.css'
 import { Box, Button } from '@material-ui/core'
-
-const TYPE_TO_ICON = {
-  'text/plain': IconPlaintextSVG,
-  'text/markdown': IconMarkdownSVG,
-  'text/javascript': IconJavaScriptSVG,
-  'application/json': IconJSONSVG
-}
-
-//checks for files in localStorage and gets if present, if not gets it from files.js
-export const getFiles = async () => {
-  if (localStorage.getItem('files')) {
-    const files = JSON.parse(localStorage.getItem('files'))
-    return files.map(file => {
-      console.log('toLocaleDateString', new Date(file.lastModified))
-      return new File([file.text], file.name, {
-        lastModified: file.lastModified,
-        type: file.type
-      })
-    })
-  } else {
-    const files = listFiles()
-    const toStorage = Promise.all(files.map(file => {
-      return (async () => {
-        return {
-          lastModified: file.lastModified,
-          name: file.name,
-          text: await file.text(),
-          type: file.type
-        }
-      })()
-    }))
-    localStorage.setItem('files', JSON.stringify(await toStorage))
-    return files
-  }
-}
-
-function FilesTable({ files, activeFile, setActiveFile, setEdit }) {
-  return (
-    <div className={css.files}>
-      <table>
-        <thead>
-          <tr>
-            <th>File</th>
-            <th>Modified</th>
-          </tr>
-        </thead>
-        <tbody>
-          {files.map(file => (
-            <tr
-              key={file.name}
-              className={classNames(
-                css.row,
-                activeFile && activeFile.name === file.name ? css.active : ''
-              )}
-              onClick={() => {
-                setActiveFile(file)
-                setEdit(false)
-              }}
-            >
-              <td className={css.file}>
-                <div
-                  className={css.icon}
-                  dangerouslySetInnerHTML={{
-                    __html: TYPE_TO_ICON[file.type]
-                  }}
-                ></div>
-                {path.basename(file.name)}
-              </td>
-
-              <td>
-                {new Date(file.lastModified).toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-FilesTable.propTypes = {
-  files: PropTypes.arrayOf(PropTypes.object),
-  activeFile: PropTypes.object,
-  setActiveFile: PropTypes.func
-}
+import { write, deleteFile, getFiles } from '../helper/index'
 
 const REGISTERED_PREVIEWERS = {
   "text/plain": PlaintextPreviewer,
@@ -126,7 +30,7 @@ const REGISTERED_EDITORS = {
   "application/json": CodeEditor
 }
 
-function Previewer({ file, edit, setEdit, files, del, setDel, setActiveFile, write, deleteFile }) {
+function Previewer({ file, edit, setEdit, files, del, setDel, setActiveFile }) {
   const [value, setValue] = useState('')
 
   const Viewer = file.type ? REGISTERED_PREVIEWERS[file.type] : null
@@ -200,34 +104,6 @@ function PlaintextFilesChallenge() {
     })()
   }, [])
 
-  //saves the file to localStorage
-  const write = (file, value, files) => {
-    console.log('Writing soon... ', file)
-
-    // TODO: Write the file to the `files` array
-    const index = files.findIndex(f => {
-      return f.name === file.name
-    })
-    files[index] = new File([value], file.name, { lastModified: new Date(), type: file.type })
-    const localStorateFiles = JSON.parse(localStorage.getItem('files'))
-    localStorateFiles[index].text = value
-    localStorateFiles[index].lastModified = Date.now()
-    localStorage.setItem('files', JSON.stringify(localStorateFiles))
-  }
-
-  //deletes files by matching index with the active file from localStorage  
-  const deleteFile = (file, files, del, setDel) => {
-
-    const index = files.findIndex(f => {
-      return f.name === file.name
-    })
-    files.splice(index, 1)
-    const localStorateFiles = JSON.parse(localStorage.getItem('files'))
-    localStorateFiles.splice(index, 1)
-    localStorage.setItem('files', JSON.stringify(localStorateFiles))
-    setDel(!del)
-  }
-
   return (
     <div className={css.page}>
       <Head>
@@ -274,8 +150,6 @@ function PlaintextFilesChallenge() {
               del={del}
               setDel={setDel}
               setActiveFile={setActiveFile}
-              write={write}
-              deleteFile={deleteFile}
             />
           </>
         )}

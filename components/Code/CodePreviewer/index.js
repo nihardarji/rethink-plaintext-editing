@@ -1,6 +1,7 @@
 import React from 'react'
-import SyntaxHighlighter from 'react-syntax-highlighter';
-// import { docco } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import PropTypes from 'prop-types'
+
+import SyntaxHighlighter from 'react-syntax-highlighter'
 
 const CodePreviewer = ({ value, fileType }) => {
     return (
@@ -10,6 +11,11 @@ const CodePreviewer = ({ value, fileType }) => {
             </SyntaxHighlighter>
         </div>
     )
+}
+
+CodePreviewer.propTypes = {
+    value: PropTypes.string,
+    fileType: PropTypes.string
 }
 
 export default CodePreviewer

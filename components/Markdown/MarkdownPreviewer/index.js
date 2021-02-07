@@ -12,7 +12,7 @@ const MarkdownPreviewer = ({ value }) => {
 }
 
 MarkdownPreviewer.propTypes = {
-    file: PropTypes.object,
+    value: PropTypes.string
 }
 
 export default MarkdownPreviewer
