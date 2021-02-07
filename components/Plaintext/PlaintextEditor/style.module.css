@@ -1,0 +1,17 @@
+.editor {
+  width: 100%;
+  background-color: var(--color-white);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.textarea {
+  width: 100%;
+  border-color: rgba(42, 104, 61, 0.76);
+  border-radius: 6px;
+  padding: 10px;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  font-style: oblique;
+  color: rgba(0, 0, 0, 0.685);
+}

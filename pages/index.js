@@ -1,30 +1,63 @@
-import React, { useState, useEffect } from 'react';
-import Head from 'next/head';
-import PropTypes from 'prop-types';
-import path from 'path';
-import classNames from 'classnames';
+import React, { useState, useEffect } from 'react'
+import Head from 'next/head'
+import PropTypes from 'prop-types'
+import path from 'path'
+import classNames from 'classnames'
 
-import { listFiles } from '../files';
+import { listFiles } from '../files'
 
 // Used below, these need to be registered
-import MarkdownEditor from '../MarkdownEditor';
-import PlaintextEditor from '../components/PlaintextEditor';
+import PlaintextEditor from '../components/Plaintext/PlaintextEditor'
+import MarkdownEditor from '../components/Markdown/MarkdownEditor'
+import MarkdownPreviewer from '../components/Markdown/MarkdownPreviewer'
+import PlaintextPreviewer from '../components/Plaintext/PlaintextPreviewer'
+import CodeEditor from '../components/Code/CodeEditor'
+import CodePreviewer from '../components/Code/CodePreviewer'
 
-import IconPlaintextSVG from '../public/icon-plaintext.svg';
-import IconMarkdownSVG from '../public/icon-markdown.svg';
-import IconJavaScriptSVG from '../public/icon-javascript.svg';
-import IconJSONSVG from '../public/icon-json.svg';
+import IconPlaintextSVG from '../public/icon-plaintext.svg'
+import IconMarkdownSVG from '../public/icon-markdown.svg'
+import IconJavaScriptSVG from '../public/icon-javascript.svg'
+import IconJSONSVG from '../public/icon-json.svg'
 
-import css from './style.module.css';
+import css from './style.module.css'
+import { Box, Button } from '@material-ui/core'
 
 const TYPE_TO_ICON = {
   'text/plain': IconPlaintextSVG,
   'text/markdown': IconMarkdownSVG,
   'text/javascript': IconJavaScriptSVG,
   'application/json': IconJSONSVG
-};
+}
 
-function FilesTable({ files, activeFile, setActiveFile }) {
+//checks for files in localStorage and gets if present, if not gets it from files.js
+export const getFiles = async () => {
+  if (localStorage.getItem('files')) {
+    const files = JSON.parse(localStorage.getItem('files'))
+    return files.map(file => {
+      console.log('toLocaleDateString', new Date(file.lastModified))
+      return new File([file.text], file.name, {
+        lastModified: file.lastModified,
+        type: file.type
+      })
+    })
+  } else {
+    const files = listFiles()
+    const toStorage = Promise.all(files.map(file => {
+      return (async () => {
+        return {
+          lastModified: file.lastModified,
+          name: file.name,
+          text: await file.text(),
+          type: file.type
+        }
+      })()
+    }))
+    localStorage.setItem('files', JSON.stringify(await toStorage))
+    return files
+  }
+}
+
+function FilesTable({ files, activeFile, setActiveFile, setEdit }) {
   return (
     <div className={css.files}>
       <table>
@@ -42,7 +75,10 @@ function FilesTable({ files, activeFile, setActiveFile }) {
                 css.row,
                 activeFile && activeFile.name === file.name ? css.active : ''
               )}
-              onClick={() => setActiveFile(file)}
+              onClick={() => {
+                setActiveFile(file)
+                setEdit(false)
+              }}
             >
               <td className={css.file}>
                 <div
@@ -67,58 +103,130 @@ function FilesTable({ files, activeFile, setActiveFile }) {
         </tbody>
       </table>
     </div>
-  );
+  )
 }
 
 FilesTable.propTypes = {
   files: PropTypes.arrayOf(PropTypes.object),
   activeFile: PropTypes.object,
   setActiveFile: PropTypes.func
-};
+}
 
-function Previewer({ file }) {
-  const [value, setValue] = useState('');
+const REGISTERED_PREVIEWERS = {
+  "text/plain": PlaintextPreviewer,
+  "text/markdown": MarkdownPreviewer,
+  "text/javascript": CodePreviewer,
+  "application/json": CodePreviewer
+}
+// Uncomment keys to register editors for media types
+const REGISTERED_EDITORS = {
+  "text/plain": PlaintextEditor,
+  "text/markdown": MarkdownEditor,
+  "text/javascript": CodeEditor,
+  "application/json": CodeEditor
+}
+
+function Previewer({ file, edit, setEdit, files, del, setDel, setActiveFile, write, deleteFile }) {
+  const [value, setValue] = useState('')
+
+  const Viewer = file.type ? REGISTERED_PREVIEWERS[file.type] : null
+  const Editor = file.type ? REGISTERED_EDITORS[file.type] : null
 
   useEffect(() => {
-    (async () => {
-      setValue(await file.text());
-    })();
-  }, [file]);
+    setValue(JSON.parse(localStorage.getItem('files')).find(f => f.name === file.name).text)
+  }, [file, edit])
 
   return (
     <div className={css.preview}>
       <div className={css.title}>{path.basename(file.name)}</div>
-      <div className={css.content}>{value}</div>
+      <div className={css.content}>
+        {edit ?
+          <Editor value={value} setValue={setValue} fileType={file.type} write={write} />
+          :
+          <Viewer value={value} fileType={file.type} />
+        }
+      </div>
+      <div>
+        {!edit ? (
+          <Box p={2}>
+            <Button className={css.button} onClick={() => setEdit(true)} variant='outlined' color='primary'>Edit</Button>
+            <Button className={css.button} onClick={() => {
+              if (confirm('Are you sure?')) {
+                deleteFile(file, files, del, setDel)
+                setActiveFile(null)
+              }
+            }} variant='outlined' color='primary'>Delete</Button>
+          </Box>
+        ) : (
+            <Box p={2}>
+              <Button
+                className={css.button}
+                onClick={() => {
+                  write(file, value, files)
+                  setEdit(false)
+                }}
+                variant='outlined'
+                color='primary'>
+                Save
+            </Button>
+              <Button
+                className={css.button}
+                onClick={() => setEdit(false)}
+                variant='outlined'
+                color='primary'>
+                Cancel
+            </Button>
+            </Box>
+          )}
+      </div>
     </div>
-  );
+  )
 }
 
 Previewer.propTypes = {
   file: PropTypes.object
-};
-
-// Uncomment keys to register editors for media types
-const REGISTERED_EDITORS = {
-  // "text/plain": PlaintextEditor,
-  // "text/markdown": MarkdownEditor,
-};
+}
 
 function PlaintextFilesChallenge() {
-  const [files, setFiles] = useState([]);
-  const [activeFile, setActiveFile] = useState(null);
+  const [files, setFiles] = useState([])
+  const [activeFile, setActiveFile] = useState(null)
+  const [edit, setEdit] = useState(false)
+  const [del, setDel] = useState(false)
 
   useEffect(() => {
-    const files = listFiles();
-    setFiles(files);
-  }, []);
+    (async () => {
+      const files = await getFiles()
+      setFiles(files)
+    })()
+  }, [])
 
-  const write = file => {
-    console.log('Writing soon... ', file.name);
+  //saves the file to localStorage
+  const write = (file, value, files) => {
+    console.log('Writing soon... ', file)
 
     // TODO: Write the file to the `files` array
-  };
+    const index = files.findIndex(f => {
+      return f.name === file.name
+    })
+    files[index] = new File([value], file.name, { lastModified: new Date(), type: file.type })
+    const localStorateFiles = JSON.parse(localStorage.getItem('files'))
+    localStorateFiles[index].text = value
+    localStorateFiles[index].lastModified = Date.now()
+    localStorage.setItem('files', JSON.stringify(localStorateFiles))
+  }
 
-  const Editor = activeFile ? REGISTERED_EDITORS[activeFile.type] : null;
+  //deletes files by matching index with the active file from localStorage  
+  const deleteFile = (file, files, del, setDel) => {
+
+    const index = files.findIndex(f => {
+      return f.name === file.name
+    })
+    files.splice(index, 1)
+    const localStorateFiles = JSON.parse(localStorage.getItem('files'))
+    localStorateFiles.splice(index, 1)
+    localStorage.setItem('files', JSON.stringify(localStorateFiles))
+    setDel(!del)
+  }
 
   return (
     <div className={css.page}>
@@ -139,6 +247,7 @@ function PlaintextFilesChallenge() {
           files={files}
           activeFile={activeFile}
           setActiveFile={setActiveFile}
+          setEdit={setEdit}
         />
 
         <div style={{ flex: 1 }}></div>
@@ -157,8 +266,17 @@ function PlaintextFilesChallenge() {
       <main className={css.editorWindow}>
         {activeFile && (
           <>
-            {Editor && <Editor file={activeFile} write={write} />}
-            {!Editor && <Previewer file={activeFile} />}
+            <Previewer
+              file={activeFile}
+              edit={edit}
+              setEdit={setEdit}
+              files={files}
+              del={del}
+              setDel={setDel}
+              setActiveFile={setActiveFile}
+              write={write}
+              deleteFile={deleteFile}
+            />
           </>
         )}
 
@@ -167,7 +285,7 @@ function PlaintextFilesChallenge() {
         )}
       </main>
     </div>
-  );
+  )
 }
 
-export default PlaintextFilesChallenge;
+export default PlaintextFilesChallenge

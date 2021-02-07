@@ -1,4 +1,5 @@
 .editor {
-  width: 640px;
+  width: 100%;
   background-color: var(--color-white);
+  margin: 10px;
 }
