@@ -12,3 +12,27 @@ To run the challenge:
 Once complete, please email us a link to your forked repo with clean, tested code. We will use Chrome to run it.
 
 - Rethink Engineering
+
+# Libraries:
+
+1. material-ui
+2. react-markdown
+3. react-mde
+4. react-syntax-highlighter
+5. @monaco-editor/react
+
+
+# Functionalities Implemented
+
+1. Stored the files on to localStorage to fetch and manage data across the application
+2. Save, Delete and Edit functionalities
+
+# Install dependencies
+
+`npm install`
+
+# To run the project
+
+`npm run dev`
+
+
